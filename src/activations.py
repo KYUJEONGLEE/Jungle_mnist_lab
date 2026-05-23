@@ -24,11 +24,12 @@ class ReLU:
             x: 임의 shape의 입력 배열
 
         Returns:
+            pytest tests/test_relu.py -v      
             x와 같은 shape. x > 0인 위치만 원래 값을 유지합니다.
         """
         # TODO: x > 0 위치를 self.mask에 저장하고, 음수/0 위치는 0으로 바꾸세요.
-        print("테스트")
-        raise NotImplementedError("ReLU.forward를 구현하세요.")
+        self.mask = x > 0
+        return np.maximum(0, x)
 
     def backward(self, dout):
         """
