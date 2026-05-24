@@ -32,14 +32,69 @@ class NeuralNetwork:
         # TODO: params dict를 만들고 Affine/BatchNorm/ReLU/Dropout layer를 순서대로 구성하세요.
         # 권장 구조: 784 -> 512 -> 256 -> 10
         # self.layers는 OrderedDict로 만들고, self.grads는 params와 같은 key를 갖게 합니다.
-        raise NotImplementedError("NeuralNetwork.__init__을 구현하세요.")
+
+        """ 1. 옵션 저장 """
+        self.use_batchnorm = use_batchnorm
+        self.use_dropout = use_dropout
+        self.dropout_ratio = dropout_ratio
+
+        """ 2. 네트워크 구조 설정 """
+        input_size = 784
+        hidden_sizes = [512, 256]
+        output_size = 10
+
+        """ 3. 파라미터 저장할 dict 선언 """
+        self.params = {}
+
+        """ 4. Affine layer 매개변수 설정 """
+        # 초기 가중치의 값들을 랜덤으로 설정
+        # 0.01 대신 sqrt(2 / size)를 사용 -> Relu에서 더 효과적
+        self.params['W1'] = np.random.randn(input_size, hidden_sizes[0]) * np.sqrt(2 / input_size)
+        self.params['b1'] = np.zeros(hidden_sizes[0])
+
+        self.params['W2'] = np.random.randn(hidden_sizes[0], hidden_sizes[1]) * np.sqrt(2 / hidden_sizes[0])
+        self.params['b2'] = np.zeros(hidden_sizes[1])
+
+        self.params['W3'] = np.random.randn(hidden_sizes[1], output_size) * np.sqrt(2 / hidden_sizes[1])
+        self.params['b3'] = np.zeros(output_size)
+
+        """ 5. BatchNorm을 사용 할 때 BatchNorm의 파라미터 초기화 """
+        if self.use_batchnorm:
+            # 감마의 초기값은 1, 베타의 초기값은 0으로 설정
+            self.params['gamma1'] = np.ones(hidden_sizes[0])
+            self.params['beta1'] = np.zeros(hidden_sizes[0])
+
+            self.params['gamma2'] = np.ones(hidden_sizes[1])
+            self.params['beta2'] = np.zeros(hidden_sizes[1])
+
+        """ 6. layer를 OrderedDict 자료형으로 선언 """
+        self.layers = OrderedDict()
+
+        """ 7. 계층들을 생성 """
+        self.layers['Affine1'] = Affine(self.params['W1'], self.params['b1'])
+        if self.use_batchnorm:
+            self.layers['BatchNorm1'] = BatchNorm(self.params['gamma1'], self.params['beta1'])
+        self.layers['ReLU1'] = ReLU()
+
+        self.layers['Affine2'] = Affine(self.params['W2'], self.params['b2'])
+        if self.use_batchnorm:
+            self.layers['BatchNorm2'] = BatchNorm(self.params['gamma2'], self.params['beta2'])
+        self.layers['ReLU2'] = ReLU()
+
+        self.layers['Affine3'] = Affine(self.params['W3'], self.params['b3'])
+        self.softmax = Softmax()
+        """ 8. gradient 저장 할 수 있는 dict 생성 """
+        self.grads = {}
+
+        """ 9. params와 같은 key를 가지게 만들기 """
+        for key in self.params.keys():
+            self.grads[key] = None
 
     def forward(self, x, train=True):
         """
         Args:
             x: (batch_size, 784) 정규화된 MNIST 이미지
             train: BatchNorm/Dropout의 학습 모드 여부
-
         Returns:
             (batch_size, 10) 각 숫자 클래스의 확률
         """
