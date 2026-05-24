@@ -75,11 +75,15 @@ class NeuralNetwork:
         if self.use_batchnorm:
             self.layers['BatchNorm1'] = BatchNorm(self.params['gamma1'], self.params['beta1'])
         self.layers['ReLU1'] = ReLU()
+        if self.use_dropout:
+            self.layers['Dropout1'] = Dropout(self.dropout_ratio)
 
         self.layers['Affine2'] = Affine(self.params['W2'], self.params['b2'])
         if self.use_batchnorm:
             self.layers['BatchNorm2'] = BatchNorm(self.params['gamma2'], self.params['beta2'])
         self.layers['ReLU2'] = ReLU()
+        if self.use_dropout:
+            self.layers['Dropout2'] = Dropout(self.dropout_ratio)
 
         self.layers['Affine3'] = Affine(self.params['W3'], self.params['b3'])
         self.softmax = Softmax()
@@ -98,8 +102,17 @@ class NeuralNetwork:
         Returns:
             (batch_size, 10) 각 숫자 클래스의 확률
         """
-        # TODO: self.layers를 순서대로 통과시키고 마지막에 Softmax를 적용하세요.
-        raise NotImplementedError("NeuralNetwork.forward를 구현하세요.")
+        """" 1. self.layers를 순서대로 순회한다. """
+        for layer_name, layer in self.layers.items():
+            if layer_name.startswith("BatchNorm"):
+                x = layer.forward(x, train)
+            elif layer_name.startswith("Dropout"):
+                x = layer.forward(x, train)
+            else:
+                x = layer.forward(x)
+
+        x = self.softmax.forward(x)
+        return x
 
     def backward(self, dout):
         """
