@@ -121,8 +121,39 @@ class NeuralNetwork:
         Args:
             dout: Softmax+CrossEntropy를 합친 출력층 gradient
         """
-        # TODO: layer를 역순으로 통과시키고 Affine/BatchNorm의 gradient를 self.grads에 모으세요.
-        raise NotImplementedError("NeuralNetwork.backward를 구현하세요.")
+
+        """
+        1. layer들을 역순으로 통과시킨다.
+        현재 self.layers에는 OrderedDict()으로 선언된 dict들이 들어있다.
+        이걸 리스트로 변환해서 reverse 해주면 역순으로 리스트가 바뀐다.
+        """
+        back_layers = list(self.layers.values())
+        back_layers.reverse()
+
+        """
+        2. 역순으로 통과시킨 layer들에서 각 layer에 맞는 backword()를 호출하면서 dout을 갱신
+        dout의 목적은 각 layer를 지나가면서 이전(앞) layer로 전달될 grad를 운반하는 것이다.
+        그 과정에서 본인 layer가 가지고 있는 dW, db를 내부에 저장하고, 이전 layer에 dout을 넘긴다.
+        """
+        for layer in back_layers:
+            dout = layer.backward(dout)
+
+        """
+        3. Affine Layer에 gradient를 저장한다.
+        """
+        self.grads['W1'] = self.layers['Affine1'].dW
+        self.grads['b1'] = self.layers['Affine1'].db
+
+        self.grads['W2'] = self.layers['Affine2'].dW
+        self.grads['b2'] = self.layers['Affine2'].db
+
+        self.grads['W3'] = self.layers['Affine3'].dW
+        self.grads['b3'] = self.layers['Affine3'].db
+
+        """
+        부록)아직 BatchNorm 구현이 안되어있기 때문에 gamma, beta값들은 추후에 갱신
+        """
+        return self.grads
 
     def loss(self, x, y):
         """현재 모델의 예측 확률을 만든 뒤 cross entropy loss를 반환합니다."""
