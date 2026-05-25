@@ -113,21 +113,22 @@ class BatchNorm:
 
             """
             3. running_mean, var 갱신
+                위 개념을 쓰는 이유부터 알아야 한다.
+                학습하는 동안은 위 개념이 필요없다.
+                하지만 테스트를 돌릴때 필요한 경우가 생긴다.
 
-            위 개념을 쓰는 이유부터 알아야 한다.
-            학습하는 동안은 위 개념이 필요없다.
-            하지만 테스트를 돌릴때 필요한 경우가 생긴다.
+                만약 테스트 배치의 크기가 1개 라고 해보자.
+                위에서 구한 mean이 x 그 자체가 되버리는 경우가 생기는데
+                즉 x - mean = 0 이 될 수도 있다.
 
-            만약 테스트 배치의 크기가 1개 라고 해보자.
-            위에서 구한 mean이 x 그 자체가 되버리는 경우가 생기는데
-            즉 x - mean = 0 이 될 수도 있다.
-
-            따라서 테스트 때는 현재 배치의 평균을 사용하는게 아니라,
-            학습하는 동안 봤던 평균들을 누적해서 만든 대표 평균을 사용
-            그게 running_mean : 기존 누적 평균의 90% 반영 + 이번 배치의 평균을 10% 반영
+                따라서 테스트 때는 현재 배치의 평균을 사용하는게 아니라,
+                학습하는 동안 봤던 평균들을 누적해서 만든 대표 평균을 사용
+                그게 running_mean : 기존 누적 평균의 90% 반영 + 이번 배치의 평균을 10% 반영
             """
             self.running_mean = self.momentum * self.running_mean + (1-self.momentum) * mean
             self.running_var = self.momentum * self.running_var + (1-self.momentum) * var
+
+            self.x_hat = x_hat
         else:
             x_hat = (x - self.running_mean) / np.sqrt(self.running_var + self.eps)
 
@@ -146,8 +147,31 @@ class BatchNorm:
         """
         # TODO: self.dbeta, self.dgamma, dx를 계산하세요.
         # 힌트: 먼저 dbeta와 dgamma shape가 beta/gamma와 같은지 확인합니다.
-        raise NotImplementedError("BatchNorm.backward를 구현하세요.")
 
+        """
+            1. dbeta의 경우
+            out = gamma * x_hat + beta
+            beta는 BatchNorm 출력에 그냥 더해지는 값이다.
+
+            out = gamma * x_hat + beta 이므로,
+            out을 beta에 대해 미분하면 1이다.
+
+            따라서 뒤쪽 층에서 흘러온 gradient dout에 1을 곱한 값이 beta 쪽 gradient가 된다.
+
+            그리고 beta는 feature마다 하나씩 있고, 같은 feature의 모든 배치 데이터에 공통으로 더해지므로,
+            배치 방향(axis=0)으로 dout을 모두 더하면 beta의 gradient가 된다.
+        """
+        self.dbeta = np.sum(dout, axis=0)
+        """
+            2. dgamma의 경우
+            out = gamma * x_hat + beta
+
+            위 식을 gamma에 대해서 미분하면 x_hat이 나온다.
+            beta와 마찬가지로 흘러온 gradient에 x_hat을 곱한 값이 gradient가 된다.
+
+            아 x_hat을 저장
+        """
+        self.dgamma = np.sum(dout * self.x_hat, axis=0)
 
 class Dropout:
     """
