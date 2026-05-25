@@ -18,9 +18,57 @@ def train(model, optimizer, x_train, y_train, epochs=20, batch_size=128):
     Returns:
         loss_history: epoch별 평균 손실 리스트
     """
-    # TODO: epoch마다 데이터를 섞고, batch 단위로 forward/loss/backward/update를 수행하세요.
-    # 힌트: Softmax + CrossEntropy 결합 gradient는 y_pred copy에서 정답 위치에 1을 빼서 만듭니다.
-    raise NotImplementedError("train을 구현하세요.")
+    loss_history = []
+    train_size = x_train.shape[0]
+
+    # epoch는 전체 학습 데이터를 한 번씩 보는 단위
+    for _ in range(epochs):
+        # 매 epoch마다 데이터 순서를 섞어 모델이 순서에 익숙해지지 않게 설정한다.
+        shuffled_idx = np.arange(train_size)
+        np.random.shuffle(shuffled_idx)
+
+        total_loss = 0.0
+        batch_count = 0
+
+        # 섞인 인덱스를 batch_size만큼 잘라 미니배치 생성
+        for i in range(0, train_size, batch_size):
+            batch_idx = shuffled_idx[i:i + batch_size]
+            x_batch = x_train[batch_idx]
+            y_batch = y_train[batch_idx]
+
+            # Forward: 현재 파라미터로 예측값 계산
+            y_pred = model.forward(x_batch, train=True)
+
+            # Loss: 예측값과 정답의 차이를 숫자 하나로 계산
+            loss = cross_entropy_loss(y_pred, y_batch)
+
+            # Softmax + CrossEntropy를 합친 gradient
+            # 정답 클래스 위치만 1을 빼고, 배치 크기로 나누어 평균 gradient로 만듬.
+            dout = y_pred.copy()
+            dout[np.arange(len(y_batch)), y_batch] -= 1
+            dout /= len(y_batch)
+
+            # Backward: 각 파라미터가 loss에 준 영향을 gradient로 계산
+            grads = model.backward(dout)
+
+            # BatchNorm의 gamma, beta gradient도 optimizer가 갱신할 수 있게 연결
+            if getattr(model, "use_batchnorm", False):
+                for name, layer in model.layers.items():
+                    if name.startswith("BatchNorm"):
+                        layer_num = name[-1]
+                        grads[f"gamma{layer_num}"] = layer.dgamma
+                        grads[f"beta{layer_num}"] = layer.dbeta
+
+            # Update: optimizer가 gradient 방향을 보고 파라미터를 갱신
+            optimizer.update(model.params, grads)
+
+            total_loss += loss
+            batch_count += 1
+
+        # epoch 동안 나온 batch loss들의 평균을 기록
+        loss_history.append(total_loss / batch_count)
+
+    return loss_history
 
 
 def evaluate(model, x, y):
