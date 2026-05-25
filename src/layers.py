@@ -109,7 +109,9 @@ class BatchNorm:
             var = np.var(x, axis=0)
 
             """ 2. 구한 평균과 분산이 1이 되도록 하는 정규화 식"""
-            x_hat = (x - mean) / np.sqrt(var + self.eps)
+            x_centered = x - mean
+            std = np.sqrt(var + self.eps)
+            x_hat = x_centered / std
 
             """
             3. running_mean, var 갱신
@@ -128,7 +130,10 @@ class BatchNorm:
             self.running_mean = self.momentum * self.running_mean + (1-self.momentum) * mean
             self.running_var = self.momentum * self.running_var + (1-self.momentum) * var
 
+            self.x_centered = x_centered
+            self.std = std
             self.x_hat = x_hat
+            self.batch_size = x.shape[0]
         else:
             x_hat = (x - self.running_mean) / np.sqrt(self.running_var + self.eps)
 
@@ -172,6 +177,11 @@ class BatchNorm:
             아 x_hat을 저장
         """
         self.dgamma = np.sum(dout * self.x_hat, axis=0)
+        """
+            3. dx를 구하려면 dx_hat부터 구해야 한다
+        """
+        dx_hat = dout * self.gamma
+        
 
 class Dropout:
     """
