@@ -81,7 +81,8 @@ class NeuralNetwork:
         # TODO: self.layers를 순서대로 통과시키고 마지막에 Softmax를 적용하세요.
         for layer in self.layers.values():
             x = layer.forward(x)
-        self.lastLayer.forward(x, train)
+        out = self.lastLayer.forward(x)
+        return out
 
     def backward(self, dout):
         """
@@ -96,6 +97,23 @@ class NeuralNetwork:
         layers.reverse()
         for layer in layers:
             dout = layer.backward(dout)
+
+        self.grads = {}
+        self.grads["W1"] = self.layers["Affine1"].dW
+        self.grads["b1"] = self.layers["Affine1"].db
+
+        self.grads["gamma1"] = self.layers["BatchNorm1"].dgamma
+        self.grads["beta1"] = self.layers["BatchNorm1"].dbeta
+
+        self.grads["W2"] = self.layers["Affine2"].dW
+        self.grads["b2"] = self.layers["Affine2"].db
+
+        self.grads["gamma2"] = self.layers["BatchNorm2"].dgamma
+        self.grads["beta2"] = self.layers["BatchNorm2"].dbeta
+
+        self.grads["W3"] = self.layers["Affine3"].dW
+        self.grads["b3"] = self.layers["Affine3"].db
+        return dout
 
     def loss(self, x, y):
         """현재 모델의 예측 확률을 만든 뒤 cross entropy loss를 반환합니다."""
