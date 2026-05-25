@@ -44,6 +44,21 @@ class ReLU:
         return dout * self.mask
 
 
+class Sigmoid:
+    """
+    Sigmoid 활성화 함수.
+
+    입력값을 0과 1 사이로 눌러서 은닉층의 비선형성을 만듭니다.
+    """
+
+    def forward(self, x):
+        self.out = 1 / (1 + np.exp(-x))
+        return self.out
+
+    def backward(self, dout):
+        return dout * self.out * (1 - self.out)
+
+
 class Softmax:
     """
     Softmax 출력층.
