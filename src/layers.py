@@ -97,7 +97,42 @@ class BatchNorm:
         """
         # TODO: train=True에서는 batch mean/var로 정규화하고 running 통계를 갱신하세요.
         # TODO: train=False에서는 running_mean/running_var를 사용하세요.
-        raise NotImplementedError("BatchNorm.forward를 구현하세요.")
+        """
+        1. 일단 x의 평균과 분산을 구한다.
+        공식은 교재 p.211 참고
+        주의 해야 할 점)np.mean()을 사용할 때 axis = 0을 설정해줘야 함.
+                    배치 정규화의 핵심은 "이 배치 안에서 같은 위치의 값들끼리의 평균,분산"
+                    을 요구하는것이지, 한 이미지의 모든 픽셀값에 대한 평균,분산을 요구하는게 아님
+        """
+        if train:
+            mean = np.mean(x, axis=0)
+            var = np.var(x, axis=0)
+
+            """ 2. 구한 평균과 분산이 1이 되도록 하는 정규화 식"""
+            x_hat = (x - mean) / np.sqrt(var + self.eps)
+
+            """
+            3. running_mean, var 갱신
+
+            위 개념을 쓰는 이유부터 알아야 한다.
+            학습하는 동안은 위 개념이 필요없다.
+            하지만 테스트를 돌릴때 필요한 경우가 생긴다.
+
+            만약 테스트 배치의 크기가 1개 라고 해보자.
+            위에서 구한 mean이 x 그 자체가 되버리는 경우가 생기는데
+            즉 x - mean = 0 이 될 수도 있다.
+
+            따라서 테스트 때는 현재 배치의 평균을 사용하는게 아니라,
+            학습하는 동안 봤던 평균들을 누적해서 만든 대표 평균을 사용
+            그게 running_mean : 기존 누적 평균의 90% 반영 + 이번 배치의 평균을 10% 반영
+            """
+            self.running_mean = self.momentum * self.running_mean + (1-self.momentum) * mean
+            self.running_var = self.momentum * self.running_var + (1-self.momentum) * var
+        else:
+            x_hat = (x - self.running_mean) / np.sqrt(self.running_var + self.eps)
+
+        out = self.gamma * x_hat + self.beta
+        return out
 
     def backward(self, dout):
         """
