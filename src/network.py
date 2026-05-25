@@ -151,8 +151,14 @@ class NeuralNetwork:
         self.grads['b3'] = self.layers['Affine3'].db
 
         """
-        부록)아직 BatchNorm 구현이 안되어있기 때문에 gamma, beta값들은 추후에 갱신
+        4. BatchNorm gamma, beta grads 갱신
         """
+        if self.use_batchnorm:
+            self.grads['gamma1'] = self.layers['BatchNorm1'].dgamma
+            self.grads['beta1'] = self.layers['BatchNorm1'].dbeta
+
+            self.grads['gamma2'] = self.layers['BatchNorm2'].dgamma
+            self.grads['beta2'] = self.layers['BatchNorm2'].dbeta
         return self.grads
 
     def loss(self, x, y):
