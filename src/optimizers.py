@@ -32,11 +32,26 @@ class Adam:
 
     def __init__(self, lr=0.001):
         """Args: lr: Adam 업데이트의 기본 학습률."""
-        self.lr = lr
-        self.m, self.v = {}, {}
-        self.t = 0
+        self.lr = lr  # 학습률: 한 번 업데이트할 때 파라미터를 얼마나 크게 움직일지 정하는 값
+        self.m, self.v = {}, {}  # m은 미분값 이동 평균, v는 미분값 제곱의 이동 평균
+        self.t = 0  # update가 호출된 횟수
 
     def update(self, params, grads):
         """Adam 공식에 따라 params dict의 모든 파라미터를 갱신합니다."""
         # TODO: m, v 이동평균과 bias correction을 사용해 params를 업데이트하세요.
-        raise NotImplementedError("Adam.update를 구현하세요.")
+        b1 = 0.9
+        b2 = 0.999
+        eps = 1e-7
+
+        if not self.m:
+            for key, val in params.items():
+                self.v[key] = np.zeros_like(val)
+                self.m[key] = np.zeros_like(val)
+        
+        self.t += 1
+
+        for key in params.keys():
+            self.m[key] = b1 * self.m[key] + (1 - b1) * grads[key]
+            self.v[key] = b2 * self.v[key] + (1 - b2) * (grads[key] ** 2)
+
+            params[key] -= self.lr * self.m[key] / (np.sqrt(self.v[key]) + eps)
