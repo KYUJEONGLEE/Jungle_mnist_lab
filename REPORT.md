@@ -13,22 +13,34 @@
 
 ## 1. 실험 목적
 
-MNIST 10-class 분류를 **NumPy만으로 구현한 신경망**으로 수행하고, 테스트 정확도와 학습 과정을 보고합니다.
+NumPy만을 사용해 MNIST 손글씨 숫자 분류 신경망을 직접 구현하고, 학습 과정을 통해 분류 성능을 확인하는 것을 목표로 한다. 또한 BatchNorm, Dropout, Adam optimizer를 적용했을 때 모델이 안정적으로 학습되는지 확인한다.
 
 ---
 
 ## 2. 모델 구조
 
+MNIST 분류를 위한 완전연결 신경망(MLP) 모델이다. 입력 이미지는 28×28 픽셀을 펼친 784차원 벡터로 사용하며, 2개의 은닉층을 거쳐 10개 클래스 확률을 출력한다.
 
-| 구분      | 내용                                                               |
-| ------- | ---------------------------------------------------------------- |
-| **입력**  | 784 (28×28 픽셀, 0~1 정규화)                                          |
-| **은닉층** | Affine → BatchNorm → ReLU → Dropout 순으로 구성 (층 수·뉴런 수는 실험에 맞게 기입) |
-| **출력**  | Affine(→10) + Softmax                                            |
+**전체 개요**
+| 항목 | 내용 |
+| --- | --- |
+| 은닉층 수 | 2개 |
+| 각 층 차원 | `784` → `512` → `256` → `10` |
+| 활성화 함수 | 은닉층: `ReLU`, 출력층: `Softmax` |
 
+**세부 구성**
+<img width="1705" height="860" alt="image" src="https://github.com/user-attachments/assets/92a1b8e0-dcd1-4f13-a4cb-cc5b12e6053e" />
 
-**예시 (2층 은닉):**  
-입력 784 → Affine(512) → BatchNorm → ReLU → Dropout → Affine(256) → BatchNorm → ReLU → Dropout → Affine(10) → Softmax
+| 단계 | 구성 | 출력 차원 |
+| --- | --- | --- |
+| 입력층 | Flatten된 MNIST 이미지 | 784 |
+| 은닉층 1 | `Affine` → `BatchNorm` → `ReLU` → `Dropout` | 512 |
+| 은닉층 2 | `Affine` → `BatchNorm` → `ReLU` → `Dropout` | 256 |
+| 출력층 | `Affine` → `Softmax` | 10 |
+
+* 첫 번째 은닉층의 차원은 512, 두 번째 은닉층의 차원은 256이며, 두 은닉층 모두 활성화 함수로 `ReLU`를 사용한다. 
+* 출력층은 10차원으로 구성되며, 최종 분류 확률 계산을 위해 `Softmax`를 적용한다. 
+* 각 은닉층에서는 `Affine` 계층으로 선형 변환을 수행한 뒤 `BatchNorm`으로 활성값 분포를 정규화하고, 이후 `ReLU`와 `Dropout`을 순서대로 적용한다.
 
 ---
 
