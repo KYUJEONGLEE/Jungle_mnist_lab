@@ -181,7 +181,14 @@ class BatchNorm:
             3. dx를 구하려면 dx_hat부터 구해야 한다
         """
         dx_hat = dout * self.gamma
-        
+
+        dx = (
+            1.0 / self.std
+            / self.batch_size
+            * (self.batch_size * dx_hat - np.sum(dx_hat, axis=0)
+                - self.x_hat * np.sum(dx_hat * self.x_hat, axis=0))
+            )
+        return dx
 
 class Dropout:
     """
@@ -203,9 +210,13 @@ class Dropout:
         """
         # TODO: train=True에서는 mask를 만들고 x에 곱하세요.
         # TODO: train=False에서는 x * (1 - drop_ratio)를 반환하세요.
-        raise NotImplementedError("Dropout.forward를 구현하세요.")
+        if train:
+            self.mask = np.random.rand(*x.shape) > self.drop_ratio
+            return x * self.mask
+        else:
+            return x * (1.0 - self.drop_ratio)
 
     def backward(self, dout):
         """forward에서 꺼졌던 뉴런 위치에는 gradient도 흘리지 않습니다."""
         # TODO: forward에서 만든 mask를 dout에 곱하세요.
-        raise NotImplementedError("Dropout.backward를 구현하세요.")
+        return dout * self.mask
