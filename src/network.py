@@ -32,19 +32,87 @@ class NeuralNetwork:
         # TODO: params dict를 만들고 Affine/BatchNorm/ReLU/Dropout layer를 순서대로 구성하세요.
         # 권장 구조: 784 -> 512 -> 256 -> 10
         # self.layers는 OrderedDict로 만들고, self.grads는 params와 같은 key를 갖게 합니다.
-        raise NotImplementedError("NeuralNetwork.__init__을 구현하세요.")
+
+        """ 1. 옵션 저장 """
+        self.use_batchnorm = use_batchnorm
+        self.use_dropout = use_dropout
+        self.dropout_ratio = dropout_ratio
+
+        """ 2. 네트워크 구조 설정 """
+        input_size = 784
+        hidden_sizes = [512, 256]
+        output_size = 10
+
+        """ 3. 파라미터 저장할 dict 선언 """
+        self.params = {}
+
+        """ 4. Affine layer 매개변수 설정 """
+        # 초기 가중치의 값들을 랜덤으로 설정
+        # 0.01 대신 sqrt(2 / size)를 사용 -> Relu에서 더 효과적
+        self.params['W1'] = np.random.randn(input_size, hidden_sizes[0]) * np.sqrt(2 / input_size)
+        self.params['b1'] = np.zeros(hidden_sizes[0])
+
+        self.params['W2'] = np.random.randn(hidden_sizes[0], hidden_sizes[1]) * np.sqrt(2 / hidden_sizes[0])
+        self.params['b2'] = np.zeros(hidden_sizes[1])
+
+        self.params['W3'] = np.random.randn(hidden_sizes[1], output_size) * np.sqrt(2 / hidden_sizes[1])
+        self.params['b3'] = np.zeros(output_size)
+
+        """ 5. BatchNorm을 사용 할 때 BatchNorm의 파라미터 초기화 """
+        if self.use_batchnorm:
+            # 감마의 초기값은 1, 베타의 초기값은 0으로 설정
+            self.params['gamma1'] = np.ones(hidden_sizes[0])
+            self.params['beta1'] = np.zeros(hidden_sizes[0])
+
+            self.params['gamma2'] = np.ones(hidden_sizes[1])
+            self.params['beta2'] = np.zeros(hidden_sizes[1])
+
+        """ 6. layer를 OrderedDict 자료형으로 선언 """
+        self.layers = OrderedDict()
+
+        """ 7. 계층들을 생성 """
+        self.layers['Affine1'] = Affine(self.params['W1'], self.params['b1'])
+        if self.use_batchnorm:
+            self.layers['BatchNorm1'] = BatchNorm(self.params['gamma1'], self.params['beta1'])
+        self.layers['ReLU1'] = ReLU()
+        if self.use_dropout:
+            self.layers['Dropout1'] = Dropout(self.dropout_ratio)
+
+        self.layers['Affine2'] = Affine(self.params['W2'], self.params['b2'])
+        if self.use_batchnorm:
+            self.layers['BatchNorm2'] = BatchNorm(self.params['gamma2'], self.params['beta2'])
+        self.layers['ReLU2'] = ReLU()
+        if self.use_dropout:
+            self.layers['Dropout2'] = Dropout(self.dropout_ratio)
+
+        self.layers['Affine3'] = Affine(self.params['W3'], self.params['b3'])
+        self.softmax = Softmax()
+        """ 8. gradient 저장 할 수 있는 dict 생성 """
+        self.grads = {}
+
+        """ 9. params와 같은 key를 가지게 만들기 """
+        for key in self.params.keys():
+            self.grads[key] = None
 
     def forward(self, x, train=True):
         """
         Args:
             x: (batch_size, 784) 정규화된 MNIST 이미지
             train: BatchNorm/Dropout의 학습 모드 여부
-
         Returns:
             (batch_size, 10) 각 숫자 클래스의 확률
         """
-        # TODO: self.layers를 순서대로 통과시키고 마지막에 Softmax를 적용하세요.
-        raise NotImplementedError("NeuralNetwork.forward를 구현하세요.")
+        """" 1. self.layers를 순서대로 순회한다. """
+        for layer_name, layer in self.layers.items():
+            if layer_name.startswith("BatchNorm"):
+                x = layer.forward(x, train)
+            elif layer_name.startswith("Dropout"):
+                x = layer.forward(x, train)
+            else:
+                x = layer.forward(x)
+
+        x = self.softmax.forward(x)
+        return x
 
     def backward(self, dout):
         """
@@ -53,8 +121,45 @@ class NeuralNetwork:
         Args:
             dout: Softmax+CrossEntropy를 합친 출력층 gradient
         """
-        # TODO: layer를 역순으로 통과시키고 Affine/BatchNorm의 gradient를 self.grads에 모으세요.
-        raise NotImplementedError("NeuralNetwork.backward를 구현하세요.")
+
+        """
+        1. layer들을 역순으로 통과시킨다.
+        현재 self.layers에는 OrderedDict()으로 선언된 dict들이 들어있다.
+        이걸 리스트로 변환해서 reverse 해주면 역순으로 리스트가 바뀐다.
+        """
+        back_layers = list(self.layers.values())
+        back_layers.reverse()
+
+        """
+        2. 역순으로 통과시킨 layer들에서 각 layer에 맞는 backword()를 호출하면서 dout을 갱신
+        dout의 목적은 각 layer를 지나가면서 이전(앞) layer로 전달될 grad를 운반하는 것이다.
+        그 과정에서 본인 layer가 가지고 있는 dW, db를 내부에 저장하고, 이전 layer에 dout을 넘긴다.
+        """
+        for layer in back_layers:
+            dout = layer.backward(dout)
+
+        """
+        3. Affine Layer에 gradient를 저장한다.
+        """
+        self.grads['W1'] = self.layers['Affine1'].dW
+        self.grads['b1'] = self.layers['Affine1'].db
+
+        self.grads['W2'] = self.layers['Affine2'].dW
+        self.grads['b2'] = self.layers['Affine2'].db
+
+        self.grads['W3'] = self.layers['Affine3'].dW
+        self.grads['b3'] = self.layers['Affine3'].db
+
+        """
+        4. BatchNorm gamma, beta grads 갱신
+        """
+        if self.use_batchnorm:
+            self.grads['gamma1'] = self.layers['BatchNorm1'].dgamma
+            self.grads['beta1'] = self.layers['BatchNorm1'].dbeta
+
+            self.grads['gamma2'] = self.layers['BatchNorm2'].dgamma
+            self.grads['beta2'] = self.layers['BatchNorm2'].dbeta
+        return self.grads
 
     def loss(self, x, y):
         """현재 모델의 예측 확률을 만든 뒤 cross entropy loss를 반환합니다."""
